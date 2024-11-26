@@ -1,0 +1,61 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.apache.spark.sql
+
+import org.apache.spark.sql.catalyst.expressions.{Expression, Literal}
+import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateFunction
+
+import org.apache.spark.sql.aggregate.KllDoublesSketchAgg
+
+// this class defines and maps all the variants of each function invocation, analagous
+// to the functions object in org.apache.spark.sql.functions
+object functions_ds {
+
+  private def withExpr(expr: => Expression): Column = Column(expr)
+
+  private def withAggregateFunction(func: AggregateFunction): Column = {
+    Column(func.toAggregateExpression())
+  }
+
+  def kll_sketch_agg(expr: Column, k: Column): Column = withAggregateFunction {
+    println("kll_sketch_agg(expr: Column, k: Column)")
+    new KllDoublesSketchAgg(expr.expr, k.expr)
+  }
+
+  def kll_sketch_agg(expr: Column, k: Int): Column = {
+    println("kll_sketch_agg(expr: Column, k: Int)")
+    //kll_sketch_agg(expr, lit(k))
+    kll_sketch_agg(expr, Column(Literal(k)))
+  }
+
+  def kll_sketch_agg(columnName: String, k: Int): Column = {
+    println("kll_sketch_agg(columnName: String, k: Ing)")
+    kll_sketch_agg(Column(columnName), k)
+  }
+
+  def kll_sketch_agg(expr: Column): Column = withAggregateFunction {
+    println("kll_sketch_agg(expr: Column)")
+    //KllDoublesSketchAgg(expr.expr, lit(KllSketch.DEFAULT_K).expr)
+    new KllDoublesSketchAgg(expr.expr) //, Column(Literal(KllSketch.DEFAULT_K)).expr)
+  }
+
+  def kll_sketch_agg(columnName: String): Column = {
+    println("kll_sketch_agg(columnName: String)")
+    kll_sketch_agg(Column(columnName))
+  }
+}

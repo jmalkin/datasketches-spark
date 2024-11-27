@@ -17,22 +17,15 @@
 
 package org.apache.spark.sql.aggregate
 
-import org.apache.datasketches.common.SketchesArgumentException
-
-import org.apache.datasketches.memory.{Memory, WritableMemory}
-import org.apache.datasketches.common.Family
 import org.apache.datasketches.kll.{KllSketch, KllDoublesSketch}
 
 import org.apache.spark.SparkUnsupportedOperationException
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.{ExpectsInputTypes, Expression, ExpressionDescription, Literal, ImplicitCastInputTypes}
+import org.apache.spark.sql.catalyst.expressions.{ExpectsInputTypes, Expression, ExpressionDescription}
 import org.apache.spark.sql.catalyst.expressions.aggregate.TypedImperativeAggregate
-import org.apache.spark.sql.catalyst.trees.BinaryLike
-import org.apache.spark.sql.errors.QueryExecutionErrors
-import org.apache.spark.sql.types.{AbstractDataType, BinaryType, DataType, IntegerType, LongType, NumericType, FloatType, DoubleType}
-
 import org.apache.spark.sql.catalyst.trees.UnaryLike
-import org.apache.spark.sql.types.KllDoublesSketchType
+import org.apache.spark.sql.types.{AbstractDataType, DataType, KllDoublesSketchWrapper, KllDoublesSketchType}
+import org.apache.datasketches.memory.Memory
 
 // TODO: write a useful javadoc, including Example in the description portion
 /**
@@ -59,7 +52,7 @@ case class KllDoublesMergeAgg(
     child: Expression,
     mutableAggBufferOffset: Int = 0,
     inputAggBufferOffset: Int = 0)
-  extends TypedImperativeAggregate[Option[KllDoublesSketch]]
+  extends TypedImperativeAggregate[Option[KllDoublesSketchWrapper]]
     with UnaryLike[Expression]
     with ExpectsInputTypes {
 
@@ -88,26 +81,26 @@ case class KllDoublesMergeAgg(
   override def nullable: Boolean = false
 
   // TODO: refine this?
-  override def inputTypes: Seq[AbstractDataType] = Seq(NumericType)
+  override def inputTypes: Seq[AbstractDataType] = Seq(KllDoublesSketchType)
 
   // create buffer
-  override def createAggregationBuffer(): Option[KllDoublesSketch] = {
+  override def createAggregationBuffer(): Option[KllDoublesSketchWrapper] = {
     None
   }
 
   // update
-  override def update(unionOption: Option[KllDoublesSketch], input: InternalRow): Option[KllDoublesSketch] = {
+  override def update(unionOption: Option[KllDoublesSketchWrapper], input: InternalRow): Option[KllDoublesSketchWrapper] = {
     val value = child.eval(input)
-    if (value != null) {
+    if (value != null && value != None) {
       child.dataType match {
         case KllDoublesSketchType =>
-          if (unionOption.isEmpty) {
+          if (unionOption == None || unionOption.get.sketch.isEmpty) {
             // if union is empty, just return a copy of the input sketch
             // TODO: is this serialized or already as a sketch object?
             //Some(KllDoublesSketch.heapify(Memory.wrap(value.asInstanceOf[Array[Byte]])))
-            Some(value.asInstanceOf[KllDoublesSketch])
+            Some(KllDoublesSketchWrapper.deserialize(value.asInstanceOf[Array[Byte]]))
           } else {
-            unionOption.get.merge(value.asInstanceOf[KllDoublesSketch])
+            unionOption.get.sketch.merge(KllDoublesSketch.wrap(Memory.wrap(value.asInstanceOf[Array[Byte]])))
             unionOption
           }
         case _ => throw new SparkUnsupportedOperationException(
@@ -120,10 +113,10 @@ case class KllDoublesMergeAgg(
   }
 
   // union (merge)
-  override def merge(unionOption: Option[KllDoublesSketch], otherOption: Option[KllDoublesSketch]): Option[KllDoublesSketch] = {
+  override def merge(unionOption: Option[KllDoublesSketchWrapper], otherOption: Option[KllDoublesSketchWrapper]): Option[KllDoublesSketchWrapper] = {
     (unionOption, otherOption) match {
       case (Some(union), Some(other)) =>
-        union.merge(other)
+        union.sketch.merge(other.sketch)
         Some(union)
 
       // for these others, we'll return the input even if degenerate
@@ -137,23 +130,23 @@ case class KllDoublesMergeAgg(
   }
 
   // eval
-  override def eval(unionOption: Option[KllDoublesSketch]): Any = {
+  override def eval(unionOption: Option[KllDoublesSketchWrapper]): Any = {
     unionOption match {
-      case Some(union) => union.toByteArray
+      case Some(wrapper) => wrapper.sketch.toByteArray
       case None => None // can this happen in practice? If so, what should we return?
     }
   }
 
-  override def serialize(sketchOption: Option[KllDoublesSketch]): Array[Byte] = {
+  override def serialize(sketchOption: Option[KllDoublesSketchWrapper]): Array[Byte] = {
     sketchOption match {
-      case Some(sketch) => sketch.toByteArray
+      case Some(wrapper) => wrapper.sketch.toByteArray
       case None => KllDoublesSketch.newHeapInstance(KllSketch.DEFAULT_K).toByteArray
     }
   }
 
-  override def deserialize(bytes: Array[Byte]): Option[KllDoublesSketch] = {
+  override def deserialize(bytes: Array[Byte]): Option[KllDoublesSketchWrapper] = {
     if (bytes.length > 0) {
-      Some(KllDoublesSketch.heapify(Memory.wrap(bytes)))
+      Some(KllDoublesSketchType.deserialize(bytes))
     } else {
       None
     }

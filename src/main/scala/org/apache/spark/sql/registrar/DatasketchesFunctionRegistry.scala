@@ -54,6 +54,6 @@ object DatasketchesFunctionRegistry extends DatasketchesFunctionRegistry {
     // Define your function entries here
     // "functionName" -> (expressionInfo, functionBuilder)
     expression[KllDoublesSketchAgg]("kll_sketch_agg"),
-    expression[KllDoublesMergeAgg]("kll_merge")
+    expression[KllDoublesMergeAgg]("kll_merge_agg")
   )
 }

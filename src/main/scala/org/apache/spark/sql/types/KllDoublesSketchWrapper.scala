@@ -1,7 +1,8 @@
 package org.apache.spark.sql.types
 
 import org.apache.datasketches.kll.KllDoublesSketch
-import org.apache.datasketches.memory.{WritableMemory, DefaultMemoryRequestServer}
+import org.apache.datasketches.memory.Memory
+//import org.apache.datasketches.memory.{WritableMemory, DefaultMemoryRequestServer}
 
 @SQLUserDefinedType(udt = classOf[KllDoublesSketchType])
 case class KllDoublesSketchWrapper(sketch: KllDoublesSketch) extends Serializable {
@@ -26,7 +27,8 @@ object KllDoublesSketchWrapper {
 
   // TODO: determine if heapify is better
   def deserialize(bytes: Array[Byte]): KllDoublesSketchWrapper = {
-    val sketch = KllDoublesSketch.writableWrap(WritableMemory.writableWrap(bytes), new DefaultMemoryRequestServer())
+    //val sketch = KllDoublesSketch.writableWrap(WritableMemory.writableWrap(bytes), new DefaultMemoryRequestServer())
+    val sketch = KllDoublesSketch.heapify(Memory.wrap(bytes))
     KllDoublesSketchWrapper(sketch)
   }
 }

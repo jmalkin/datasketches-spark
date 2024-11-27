@@ -31,7 +31,7 @@ class KllTest extends SparkSessionManager {
     println("done group")
 
     // Call kll_sketch_agg outside of agg() and assign it to a temporary variable
-    val kllSketchAggExpr = kll_sketch_agg($"uniform", 200)
+    val kllSketchAggExpr = kll_sketch_agg($"gaussian", 200)
     println(s"kllSketchAggExpr: $kllSketchAggExpr")
 
     // Use the temporary variable in agg()
@@ -45,6 +45,11 @@ class KllTest extends SparkSessionManager {
 
     println(s"Min uniform: $minUniform, Max uniform: $maxUniform")
     gaussianKllDf.show()
+
+    gaussianKllDf.select($"id", kll_get_min($"kll_uniform").as("min_uniform"), kll_get_max($"kll_uniform").as("max_uniform")).orderBy($"id").show()
+
+    val kllFinalDf = gaussianKllDf.agg(kll_merge_agg($"kll_uniform").as("merged_kll"))
+    kllFinalDf.select(kll_get_min($"merged_kll").as("min_uniform"), kll_get_max($"merged_kll").as("max_uniform")).show()
   }
 
   private def generateRecords(numRecords: Int = 25000): Seq[Record] = {

@@ -20,16 +20,26 @@ package org.apache.spark.sql
 import org.apache.spark.sql.functions.lit
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateFunction
 
-import org.apache.spark.sql.aggregate.KllDoublesSketchAgg
+import org.apache.spark.sql.catalyst.expressions.Expression
+import org.apache.spark.sql.aggregate.{KllDoublesSketchAgg, KllDoublesMergeAgg}
+import org.apache.spark.sql.expressions.{KllGetMin, KllGetMax}
 
 // this class defines and maps all the variants of each function invocation, analagous
 // to the functions object in org.apache.spark.sql.functions
 object functions_ds {
 
-  //private def withExpr(expr: => Expression): Column = Column(expr)
+  private def withExpr(expr: => Expression): Column = Column(expr)
 
   private def withAggregateFunction(func: AggregateFunction): Column = {
     Column(func.toAggregateExpression())
+  }
+
+  def kll_get_min(expr: Column): Column = withExpr {
+    new KllGetMin(expr.expr)
+  }
+
+  def kll_get_max(expr: Column): Column = withExpr {
+    new KllGetMax(expr.expr)
   }
 
   def kll_sketch_agg(expr: Column, k: Column): Column = withAggregateFunction {
@@ -50,5 +60,13 @@ object functions_ds {
 
   def kll_sketch_agg(columnName: String): Column = {
     kll_sketch_agg(Column(columnName))
+  }
+
+  def kll_merge_agg(expr: Column): Column = withAggregateFunction {
+    new KllDoublesMergeAgg(expr.expr)
+  }
+
+  def kll_merge_agg(columnName: String): Column = {
+    kll_merge_agg(Column(columnName))
   }
 }

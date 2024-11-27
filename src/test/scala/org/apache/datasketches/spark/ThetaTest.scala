@@ -3,7 +3,7 @@ package org.apache.datasketches.spark
 import scala.util.Random
 import scala.collection.mutable
 
-class ThetaTest extends BaseTest {
+class ThetaTest extends SparkSessionManager {
   test("theta") {
     println("TEST!!!!")
     val data: Seq[Record] = generateRecords()

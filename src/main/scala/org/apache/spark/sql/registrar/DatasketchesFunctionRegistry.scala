@@ -19,7 +19,7 @@ package org.apache.spark.registrar
 
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.FunctionIdentifier
-import org.apache.spark.sql.catalyst.analysis.{FunctionRegistry, FunctionRegistryBase}
+import org.apache.spark.sql.catalyst.analysis.FunctionRegistryBase
 import org.apache.spark.sql.catalyst.analysis.FunctionRegistry.FunctionBuilder
 import org.apache.spark.sql.catalyst.expressions.{Expression, ExpressionInfo}
 
@@ -34,10 +34,6 @@ trait DatasketchesFunctionRegistry {
   // override this to define the actual functions
   val expressions: Map[String, (ExpressionInfo, FunctionBuilder)]
 
-  //def registerFunction(name: String, info: ExpressionInfo, builder: FunctionBuilder): Unit = {
-  //  expressions += (name -> (info, builder))
-  //}
-
   // registers all the functions in the expressions Map
   def registerFunctions(spark: SparkSession): Unit = {
     expressions.foreach { case (name, (info, builder)) =>
@@ -50,7 +46,6 @@ trait DatasketchesFunctionRegistry {
     val (expressionInfo, builder) = FunctionRegistryBase.build[T](name, None)
     (name, (expressionInfo, builder))
   }
-
 }
 
 // defines the Map for the Datasketches functions

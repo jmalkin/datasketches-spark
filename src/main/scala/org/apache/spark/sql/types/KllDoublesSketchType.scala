@@ -17,25 +17,22 @@
 
 package org.apache.spark.sql.types
 
-//import org.apache.spark.sql.types.{BinaryType, DataType}
-import org.apache.datasketches.memory.{WritableMemory, DefaultMemoryRequestServer}
-import org.apache.datasketches.kll.KllDoublesSketch
+//import org.apache.datasketches.memory.{WritableMemory, DefaultMemoryRequestServer}
+//import org.apache.datasketches.kll.KllDoublesSketch
 
-class KllDoublesSketchType extends UserDefinedType[KllDoublesSketch] {
+class KllDoublesSketchType extends UserDefinedType[KllDoublesSketchWrapper] {
   override def sqlType: DataType = DataTypes.BinaryType
 
-  override def serialize(sketch: KllDoublesSketch): Array[Byte] = {
-    sketch.toByteArray
+  override def serialize(wrapper: KllDoublesSketchWrapper): Array[Byte] = {
+    wrapper.toByteArray
   }
 
-  // assuming wrap is ok since read-only and already compact
-  override def deserialize(data: Any): KllDoublesSketch = {
+  override def deserialize(data: Any): KllDoublesSketchWrapper = {
     val bytes = data.asInstanceOf[Array[Byte]]
-    KllDoublesSketch.writableWrap(WritableMemory.writableWrap(bytes), new DefaultMemoryRequestServer())
+    KllDoublesSketchWrapper.deserialize(bytes)
   }
 
-  // ensure we return the class type when queried
-  override def userClass: Class[KllDoublesSketch] = classOf[KllDoublesSketch]
+  override def userClass: Class[KllDoublesSketchWrapper] = classOf[KllDoublesSketchWrapper]
 
   override def catalogString: String = "KllDoublesSketch"
 }

@@ -17,23 +17,13 @@
 
 package org.apache.spark.sql.aggregate
 
-//import org.apache.datasketches.common.SketchesArgumentException
-
-//import org.apache.datasketches.memory.{Memory, WritableMemory}
-//import org.apache.datasketches.common.Family
 import org.apache.datasketches.kll.{KllSketch, KllDoublesSketch}
-
 import org.apache.spark.SparkUnsupportedOperationException
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{ExpectsInputTypes, Expression, ExpressionDescription, Literal}
-//import org.apache.spark.sql.catalyst.expressions.{ImplicitCastInputTypes, Expression, ExpressionDescription, Literal}
 import org.apache.spark.sql.catalyst.expressions.aggregate.TypedImperativeAggregate
 import org.apache.spark.sql.catalyst.trees.BinaryLike
-import org.apache.spark.sql.types.{AbstractDataType, DataType, IntegerType, LongType, NumericType, FloatType, DoubleType}
-
-//import org.apache.spark.sql.catalyst.expressions.{Expression, ImplicitCastInputTypes}
-import org.apache.spark.sql.catalyst.trees.BinaryLike
-import org.apache.spark.sql.types.KllDoublesSketchType
+import org.apache.spark.sql.types.{AbstractDataType, DataType, IntegerType, LongType, NumericType, FloatType, DoubleType, KllDoublesSketchWrapper, KllDoublesSketchType}
 
 // TODO: write a useful javadoc, including Example in the description portion
 /**
@@ -54,22 +44,16 @@ import org.apache.spark.sql.types.KllDoublesSketchType
       > SELECT theta_sketch_estimate(_FUNC_(col, 12)) FROM VALUES (1), (1), (2), (2), (3) tab(col);
        3
   """,
-  //group = "agg_funcs",
 )
 // scalastyle:on line.size.limit
 case class KllDoublesSketchAgg(
     left: Expression,
     right: Expression,
     mutableAggBufferOffset: Int = 0,
-    inputAggBufferOffset: Int = 0,
-    constructorFlag: String = "")
-  extends TypedImperativeAggregate[KllDoublesSketch]
+    inputAggBufferOffset: Int = 0)
+  extends TypedImperativeAggregate[KllDoublesSketchWrapper]
     with BinaryLike[Expression]
     with ExpectsInputTypes {
-
-  println(s"Primary constructor called with flag: $constructorFlag")
-  println("Value of right: " + right)
-  println("Value of left: " + left)
 
   lazy val k: Int = {
     right.eval() match {
@@ -84,15 +68,15 @@ case class KllDoublesSketchAgg(
   // Constructors
 
   def this(child: Expression) = {
-    this(child, Literal(KllSketch.DEFAULT_K), 0, 0, "Constructor with child: Expression")
+    this(child, Literal(KllSketch.DEFAULT_K), 0, 0)
   }
 
   def this(child: Expression, k: Expression) = {
-    this(child, k, 0, 0, "Constructor with child: Expression, k: Expression")
+    this(child, k, 0, 0)
   }
 
   def this(child: Expression, k: Int) = {
-    this(child, Literal(k), 0, 0, "Constructor with child: Expression, k: Int")
+    this(child, Literal(k), 0, 0)
   }
 
   // Copy constructors
@@ -105,10 +89,7 @@ case class KllDoublesSketchAgg(
 
   override protected def withNewChildrenInternal(newLeft: Expression,
                                                  newRight: Expression): KllDoublesSketchAgg = {
-    println(s"withNewChildrenInternal called with newLeft: $newLeft, newRight: $newRight")
-    val newAgg = copy(left = newLeft, right = newRight)
-    println(s"New KllDoublesSketchAgg instance created: $newAgg")
-    newAgg
+    copy(left = newLeft, right = newRight)
   }
 
   // overrides for TypedImperativeAggregate
@@ -121,47 +102,47 @@ case class KllDoublesSketchAgg(
   override def inputTypes: Seq[AbstractDataType] = Seq(NumericType, IntegerType, LongType, FloatType, DoubleType)
 
   // create buffer
-  override def createAggregationBuffer(): KllDoublesSketch = KllDoublesSketch.newHeapInstance(k)
+  override def createAggregationBuffer(): KllDoublesSketchWrapper = new KllDoublesSketchWrapper(KllDoublesSketch.newHeapInstance(k))
 
   // update
-  override def update(sketch: KllDoublesSketch, input: InternalRow): KllDoublesSketch = {
+  override def update(wrapper: KllDoublesSketchWrapper, input: InternalRow): KllDoublesSketchWrapper = {
     val value = left.eval(input)
     if (value != null) {
       left.dataType match {
-        case DoubleType => sketch.update(value.asInstanceOf[Double])
-        case FloatType => sketch.update(value.asInstanceOf[Float].toDouble)
-        case IntegerType => sketch.update(value.asInstanceOf[Int].toDouble)
-        case LongType => sketch.update(value.asInstanceOf[Long].toDouble)
+        case DoubleType => wrapper.sketch.update(value.asInstanceOf[Double])
+        case FloatType => wrapper.sketch.update(value.asInstanceOf[Float].toDouble)
+        case IntegerType => wrapper.sketch.update(value.asInstanceOf[Int].toDouble)
+        case LongType => wrapper.sketch.update(value.asInstanceOf[Long].toDouble)
         case _ => throw new SparkUnsupportedOperationException(
           s"Unsupported input type ${left.dataType.catalogString}",
           Map("dataType" -> dataType.toString))
       }
     }
-    sketch
+    wrapper
   }
 
   // union (merge)
-  override def merge(sketch: KllDoublesSketch, other: KllDoublesSketch): KllDoublesSketch = {
-    if (other != null && !other.isEmpty) {
-      sketch.merge(other)
+  override def merge(wrapper: KllDoublesSketchWrapper, other: KllDoublesSketchWrapper): KllDoublesSketchWrapper = {
+    if (other != null && !other.sketch.isEmpty) {
+      wrapper.sketch.merge(other.sketch)
     }
-    sketch
+    wrapper
   }
 
   // eval
-  override def eval(sketch: KllDoublesSketch): Any = {
-    if (sketch == null || sketch.isEmpty) {
+  override def eval(wrapper: KllDoublesSketchWrapper): Any = {
+    if (wrapper == null || wrapper.sketch.isEmpty) {
       null
     } else {
-      sketch.toByteArray
+      wrapper.toByteArray
     }
   }
 
-  override def serialize(sketch: KllDoublesSketch): Array[Byte] = {
-    KllDoublesSketchType.serialize(sketch)
+  override def serialize(wrapper: KllDoublesSketchWrapper): Array[Byte] = {
+    KllDoublesSketchType.serialize(wrapper)
   }
 
-  override def deserialize(bytes: Array[Byte]): KllDoublesSketch = {
+  override def deserialize(bytes: Array[Byte]): KllDoublesSketchWrapper = {
     KllDoublesSketchType.deserialize(bytes)
   }
 }

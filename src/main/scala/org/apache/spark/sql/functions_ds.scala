@@ -17,7 +17,7 @@
 
 package org.apache.spark.sql
 
-import org.apache.spark.sql.catalyst.expressions.{Expression, Literal}
+import org.apache.spark.sql.functions.lit
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateFunction
 
 import org.apache.spark.sql.aggregate.KllDoublesSketchAgg
@@ -26,36 +26,29 @@ import org.apache.spark.sql.aggregate.KllDoublesSketchAgg
 // to the functions object in org.apache.spark.sql.functions
 object functions_ds {
 
-  private def withExpr(expr: => Expression): Column = Column(expr)
+  //private def withExpr(expr: => Expression): Column = Column(expr)
 
   private def withAggregateFunction(func: AggregateFunction): Column = {
     Column(func.toAggregateExpression())
   }
 
   def kll_sketch_agg(expr: Column, k: Column): Column = withAggregateFunction {
-    println("kll_sketch_agg(expr: Column, k: Column)")
     new KllDoublesSketchAgg(expr.expr, k.expr)
   }
 
   def kll_sketch_agg(expr: Column, k: Int): Column = {
-    println("kll_sketch_agg(expr: Column, k: Int)")
-    //kll_sketch_agg(expr, lit(k))
-    kll_sketch_agg(expr, Column(Literal(k)))
+    kll_sketch_agg(expr, lit(k))
   }
 
   def kll_sketch_agg(columnName: String, k: Int): Column = {
-    println("kll_sketch_agg(columnName: String, k: Ing)")
     kll_sketch_agg(Column(columnName), k)
   }
 
   def kll_sketch_agg(expr: Column): Column = withAggregateFunction {
-    println("kll_sketch_agg(expr: Column)")
-    //KllDoublesSketchAgg(expr.expr, lit(KllSketch.DEFAULT_K).expr)
-    new KllDoublesSketchAgg(expr.expr) //, Column(Literal(KllSketch.DEFAULT_K)).expr)
+    new KllDoublesSketchAgg(expr.expr)
   }
 
   def kll_sketch_agg(columnName: String): Column = {
-    println("kll_sketch_agg(columnName: String)")
     kll_sketch_agg(Column(columnName))
   }
 }

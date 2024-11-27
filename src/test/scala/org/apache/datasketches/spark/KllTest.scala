@@ -2,18 +2,19 @@ package org.apache.datasketches.spark
 
 import scala.util.Random
 import scala.collection.mutable
-import org.apache.spark.sql.{Dataset, DataFrame}
+//import org.apache.spark.sql.Dataset
+//import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.functions_ds._
 import org.apache.spark.registrar.DatasketchesFunctionRegistry
-import org.apache.spark.sql.aggregate.KllDoublesSketchAgg
+//import org.apache.spark.sql.aggregate.KllDoublesSketchAgg
 
-class KllTest extends BaseTest {
+class KllTest extends SparkSessionManager {
 
   import spark.implicits._
 
   test("kll") {
-    println("TEST!!!!")
+    println("KLL!!!!")
     val data: Seq[Record] = generateRecords()
     val exactStats = ExactStats()
     data.foreach(exactStats.addRecord)

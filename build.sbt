@@ -8,8 +8,8 @@ description := "The Apache DataSketches package for Spark"
 licenses += ("Apache-2.0", url("http://www.apache.org/licenses/LICENSE-2.0"))
 
 inThisBuild(List(
-  javacOptions ++= Seq("-source", "17", "-target", "17"),
-  scalacOptions ++= Seq("-encoding", "UTF-8")
+  javacOptions ++= Seq("-source", "11", "-target", "11"),
+  scalacOptions ++= Seq("-encoding", "UTF-8", "-release", "11")
 ))
 
 libraryDependencies ++= Seq(

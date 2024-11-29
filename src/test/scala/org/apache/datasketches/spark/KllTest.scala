@@ -15,6 +15,9 @@ class KllTest extends SparkSessionManager {
 
   test("kll") {
     println("KLL!!!!")
+    println("Spark version: " + spark.version)
+    println("Spark session config: " + spark.conf.getAll.mkString("\n"))
+    println(s"Driver Java version: ${System.getProperty("java.version")}")
     val data: Seq[Record] = generateRecords()
     val exactStats = ExactStats()
     data.foreach(exactStats.addRecord)

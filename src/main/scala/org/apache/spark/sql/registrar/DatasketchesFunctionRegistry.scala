@@ -28,7 +28,6 @@ import scala.reflect.ClassTag
 // DataSketches imports
 import org.apache.spark.sql.aggregate.{KllDoublesSketchAgg, KllDoublesMergeAgg}
 
-
 // based on org.apache.spark.sql.catalyst.FunctionRegistry
 trait DatasketchesFunctionRegistry {
   // override this to define the actual functions

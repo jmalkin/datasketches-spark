@@ -21,7 +21,7 @@ import org.apache.datasketches.kll.KllDoublesSketch
 import org.apache.datasketches.memory.Memory
 
 @SQLUserDefinedType(udt = classOf[KllDoublesSketchType])
-case class KllDoublesSketchWrapper(sketch: KllDoublesSketch) extends Serializable {
+case class KllDoublesSketchWrapper(sketch: KllDoublesSketch) {
 
   def toByteArray: Array[Byte] = sketch.toByteArray
 
@@ -33,9 +33,15 @@ case class KllDoublesSketchWrapper(sketch: KllDoublesSketch) extends Serializabl
 }
 
 object KllDoublesSketchWrapper {
+  // TODO: determine if wrap or writableWrap is a better option
   def deserialize(bytes: Array[Byte]): KllDoublesSketchWrapper = {
-    //val sketch = KllDoublesSketch.writableWrap(WritableMemory.writableWrap(bytes), new DefaultMemoryRequestServer())
     val sketch = KllDoublesSketch.heapify(Memory.wrap(bytes))
     KllDoublesSketchWrapper(sketch)
+  }
+
+  // this can go away in favor of directly calling the KllDoublesSketch.wrap
+  // from codegen once janino can generate java 8+ code
+  def wrapAsReadOnlySketch(bytes: Array[Byte]): KllDoublesSketch = {
+    KllDoublesSketch.wrap(Memory.wrap(bytes))
   }
 }

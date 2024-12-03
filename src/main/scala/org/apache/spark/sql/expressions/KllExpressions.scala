@@ -22,11 +22,10 @@ import org.apache.datasketches.kll.KllDoublesSketch
 import org.apache.spark.sql.catalyst.expressions.{Expression, ExpectsInputTypes, UnaryExpression}
 import org.apache.spark.sql.types.{AbstractDataType, DataType, DoubleType, KllDoublesSketchType}
 import org.apache.spark.sql.catalyst.expressions.NullIntolerant
-import org.apache.spark.sql.catalyst.expressions.codegen.CodegenFallback
+import org.apache.spark.sql.catalyst.expressions.codegen.{CodeBlock, CodegenContext, ExprCode}
 
 case class KllGetMin(child: Expression)
  extends UnaryExpression
- with CodegenFallback
  with ExpectsInputTypes
  with NullIntolerant {
 
@@ -43,11 +42,27 @@ case class KllGetMin(child: Expression)
     val sketch = KllDoublesSketch.wrap(Memory.wrap(bytes))
     sketch.getMinItem
   }
+
+  override protected def nullSafeCodeGen(ctx: CodegenContext, ev: ExprCode, f: String => String): ExprCode = {
+    val childEval = child.genCode(ctx)
+    val sketch = ctx.freshName("sketch")
+
+    val code =
+      s"""
+         |${childEval.code}
+         |final org.apache.datasketches.kll.KllDoublesSketch $sketch = org.apache.spark.sql.types.KllDoublesSketchWrapper.wrapAsReadOnlySketch(${childEval.value});
+         |final double ${ev.value} = $sketch.getMinItem();
+       """.stripMargin
+    ev.copy(code = CodeBlock(Seq(code), Seq.empty), isNull = childEval.isNull)
+  }
+
+  override def doGenCode(ctx: CodegenContext, ev: ExprCode): ExprCode = {
+    nullSafeCodeGen(ctx, ev, c => s"($c)")
+  }
 }
 
 case class KllGetMax(child: Expression)
  extends UnaryExpression
- with CodegenFallback
  with ExpectsInputTypes
  with NullIntolerant {
 
@@ -64,4 +79,36 @@ case class KllGetMax(child: Expression)
     val sketch = KllDoublesSketch.wrap(Memory.wrap(bytes))
     sketch.getMaxItem
   }
+
+  override protected def nullSafeCodeGen(ctx: CodegenContext, ev: ExprCode, f: String => String): ExprCode = {
+    val childEval = child.genCode(ctx)
+    val sketch = ctx.freshName("sketch")
+
+    val code =
+      s"""
+         |${childEval.code}
+         |final org.apache.datasketches.kll.KllDoublesSketch $sketch = org.apache.spark.sql.types.KllDoublesSketchWrapper.wrapAsReadOnlySketch(${childEval.value});
+         |final double ${ev.value} = $sketch.getMaxItem();
+       """.stripMargin
+    ev.copy(code = CodeBlock(Seq(code), Seq.empty), isNull = childEval.isNull)
+  }
+
+  override def doGenCode(ctx: CodegenContext, ev: ExprCode): ExprCode = {
+    nullSafeCodeGen(ctx, ev, c => s"($c)")
+  }
 }
+
+// default search criteria = inclusive
+// getPMF(double[] splitPoints, QuantileSearchCriteria)
+// getCDF(double[] splitPoints, QuantileSearchCriteria)
+// getQuantile(rank, QuantileSearchCriteria)
+// getQuantileLowerBound(rank)
+// getQuantileUpperBound(rank)
+// getQuantiles(double ranks[], QuantileSearchCriteria)
+// getRank(quantile, QuantileSearchCriteria)
+// getRanks(quantile[]), QuantileSearchCriteria)
+// getNormalizedRankError(bool isPmf)
+// isEstimationMode()
+// toString(bool, bool) -- already part of the wrapper
+// getK() ?
+// getNumRetained() ?

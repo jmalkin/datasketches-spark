@@ -25,10 +25,10 @@ description := "The Apache DataSketches package for Spark"
 licenses += ("Apache-2.0", url("http://www.apache.org/licenses/LICENSE-2.0"))
 
 // these do not impact code generation in spark
-javacOptions ++= Seq("-source", "11", "-target", "11")
+javacOptions ++= Seq("-source", "17", "-target", "17")
 scalacOptions ++= Seq("-encoding", "UTF-8", "-release", "11")
-javacOptions in Test ++= Seq("-source", "11", "-target", "11")
-scalacOptions in Test ++= Seq("-encoding", "UTF-8", "-release", "11")
+Test / javacOptions ++= Seq("-source", "17", "-target", "17")
+Test / scalacOptions ++= Seq("-encoding", "UTF-8", "-release", "11")
 
 libraryDependencies ++= Seq(
   "org.scala-lang" % "scala-library" % "2.12.6",
@@ -38,7 +38,7 @@ libraryDependencies ++= Seq(
   "org.scalatestplus" %% "junit-4-13" % "3.2.19.0" % "test"
 )
 
-testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-oD")
+Test / testOptions += Tests.Argument(TestFrameworks.ScalaTest, "-oD")
 
 scalacOptions ++= Seq(
   "-deprecation",
@@ -47,11 +47,11 @@ scalacOptions ++= Seq(
   "-Xlint"
 )
 
-logBuffered in Test := false
+Test / logBuffered := false
 
 // Only show warnings and errors on the screen for compilations.
 // This applies to both test:compile and compile and is Info by default
-logLevel in compile := Level.Warn
+Compile / logLevel := Level.Warn
 
 // Level.INFO is needed to see detailed output when running tests
-logLevel in test := Level.Info
+Test / logLevel := Level.Info

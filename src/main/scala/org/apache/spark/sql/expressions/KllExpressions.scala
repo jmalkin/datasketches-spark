@@ -19,10 +19,12 @@ package org.apache.spark.sql.expressions
 
 import org.apache.datasketches.memory.Memory
 import org.apache.datasketches.kll.KllDoublesSketch
-import org.apache.spark.sql.catalyst.expressions.{Expression, ExpectsInputTypes, UnaryExpression}
-import org.apache.spark.sql.types.{AbstractDataType, DataType, DoubleType, KllDoublesSketchType}
+import org.apache.spark.sql.catalyst.expressions.{Expression, ExpectsInputTypes, UnaryExpression, BinaryExpression}
+import org.apache.spark.sql.types.{AbstractDataType, DataType, ArrayType, DoubleType, KllDoublesSketchType}
 import org.apache.spark.sql.catalyst.expressions.NullIntolerant
 import org.apache.spark.sql.catalyst.expressions.codegen.{CodeBlock, CodegenContext, ExprCode}
+import org.apache.datasketches.quantilescommon.QuantileSearchCriteria
+import org.apache.spark.sql.catalyst.util.GenericArrayData
 
 case class KllGetMin(child: Expression)
  extends UnaryExpression
@@ -32,6 +34,8 @@ case class KllGetMin(child: Expression)
   override protected def withNewChildInternal(newChild: Expression): KllGetMin = {
     copy(child = newChild)
   }
+
+  override def prettyName: String = "kll_get_min"
 
   override def inputTypes: Seq[AbstractDataType] = Seq(KllDoublesSketchType)
 
@@ -70,6 +74,8 @@ case class KllGetMax(child: Expression)
     copy(child = newChild)
   }
 
+  override def prettyName: String = "kll_get_max"
+
   override def inputTypes: Seq[AbstractDataType] = Seq(KllDoublesSketchType)
 
   override def dataType: DataType = DoubleType
@@ -98,9 +104,74 @@ case class KllGetMax(child: Expression)
   }
 }
 
+
+/**
+  * Returns the PMF and CDF of the given quantile search criteria.
+  *
+  * @param left A KllDoublesSketch sketch, in serialized form
+  * @param right An array of split points, as doubles
+  * @param isInclusive If true, use INCLUSIVE else EXCLUSIVE
+  * @param isPmf Whether to return the PMF (true) or CDF (false)
+  */
+case class KllGetPmfCdf(left: Expression, right: Expression, isInclusive: Boolean, isPmf: Boolean)
+ extends BinaryExpression
+ with ExpectsInputTypes
+ with NullIntolerant {
+
+  override protected def withNewChildrenInternal(newLeft: Expression,
+                                              newRight: Expression) = {
+    copy(left = newLeft, right = newRight, isInclusive = isInclusive, isPmf = isPmf)
+  }
+
+  override def prettyName: String = "kll_get_pmf_cdf"
+
+  override def inputTypes: Seq[AbstractDataType] = Seq(KllDoublesSketchType, ArrayType(DoubleType))
+
+  override def dataType: DataType = ArrayType(DoubleType)
+
+  override def nullSafeEval(leftInput: Any, rightInput: Any): Any = {
+    val sketchBytes = leftInput.asInstanceOf[Array[Byte]]
+    val splitPoints = rightInput.asInstanceOf[GenericArrayData].toDoubleArray
+    val sketch = KllDoublesSketch.wrap(Memory.wrap(sketchBytes))
+
+    val result =
+      if (isPmf) {
+        sketch.getPMF(splitPoints, if (isInclusive) QuantileSearchCriteria.INCLUSIVE else QuantileSearchCriteria.EXCLUSIVE)
+      } else {
+        sketch.getCDF(splitPoints, if (isInclusive) QuantileSearchCriteria.INCLUSIVE else QuantileSearchCriteria.EXCLUSIVE)
+      }
+    new GenericArrayData(result)
+  }
+
+  override protected def nullSafeCodeGen(ctx: CodegenContext, ev: ExprCode, f: (String, String) => String): ExprCode = {
+    val sketchEval = left.genCode(ctx)
+    val sketch = ctx.freshName("sketch")
+    val splitPointsEval = right.genCode(ctx)
+    val code =
+      s"""
+         |${sketchEval.code}
+         |${splitPointsEval.code}
+         |if (${sketchEval.isNull} || ${splitPointsEval.isNull}) {
+         |  ${ev.isNull} = true;
+         |} else {
+         |  QuantileSearchCriteria searchCriteria = ${if (isInclusive) "QuantileSearchCriteria.INCLUSIVE" else "QuantileSearchCriteria.EXCLUSIVE"};
+         |  final org.apache.datasketches.kll.KllDoublesSketch $sketch = org.apache.spark.sql.types.KllDoublesSketchWrapper.wrapAsReadOnlySketch(${sketchEval.value});
+         |  final double[] result = ${if (isPmf) s"$sketch.getPMF(${splitPointsEval.value}, searchCriteria)" else s"$sketch.getCDF(${splitPointsEval.value}, searchCriteria)"};
+         |  GenericArrayData ${ev.value} = new org.apache.spark.sql.catalyst.util.GenericArrayData(result);
+         |  ${ev.isNull} = false;
+         |}
+       """.stripMargin
+    ev.copy(code = CodeBlock(Seq(code), Seq.empty))
+  }
+
+  override def doGenCode(ctx: CodegenContext, ev: ExprCode): ExprCode = {
+    nullSafeCodeGen(ctx, ev, (arg1, arg2) => s"($arg1, $arg2)")
+  }
+}
+
+
+
 // default search criteria = inclusive
-// getPMF(double[] splitPoints, QuantileSearchCriteria)
-// getCDF(double[] splitPoints, QuantileSearchCriteria)
 // getQuantile(rank, QuantileSearchCriteria)
 // getQuantileLowerBound(rank)
 // getQuantileUpperBound(rank)

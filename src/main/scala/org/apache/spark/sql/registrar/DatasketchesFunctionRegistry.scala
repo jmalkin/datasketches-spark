@@ -27,6 +27,8 @@ import scala.reflect.ClassTag
 
 // DataSketches imports
 import org.apache.spark.sql.aggregate.{KllDoublesSketchAgg, KllDoublesMergeAgg}
+import org.apache.spark.sql.expressions.{KllGetMin, KllGetMax}
+import org.apache.spark.sql.expressions.KllGetPmfCdf
 
 // based on org.apache.spark.sql.catalyst.FunctionRegistry
 trait DatasketchesFunctionRegistry {
@@ -53,6 +55,10 @@ object DatasketchesFunctionRegistry extends DatasketchesFunctionRegistry {
     // Define your function entries here
     // "functionName" -> (expressionInfo, functionBuilder)
     expression[KllDoublesSketchAgg]("kll_sketch_agg"),
-    expression[KllDoublesMergeAgg]("kll_merge_agg")
+    expression[KllDoublesMergeAgg]("kll_merge_agg"),
+    expression[KllGetMin]("kll_get_min"),
+    expression[KllGetMax]("kll_get_max"),
+    expression[KllGetPmfCdf]("kll_get_pmf"),
+    expression[KllGetPmfCdf]("kll_get_cdf")
   )
 }

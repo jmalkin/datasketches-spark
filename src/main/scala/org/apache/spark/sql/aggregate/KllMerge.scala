@@ -38,12 +38,12 @@ import org.apache.datasketches.memory.Memory
 // scalastyle:off line.size.limit
 @ExpressionDescription(
   usage = """
-    _FUNC_(expr, k) - Returns the KllDoublesSketch's binary representation.
-      `k` (optional) the size-accuracy trade-off parameter.""",
+    _FUNC_(expr, k) - Merges multiple KllDoublesSketch images and returns the binary representation
+    """,
   examples = """
     Examples:
-      > SELECT theta_sketch_estimate(_FUNC_(col, 12)) FROM VALUES (1), (1), (2), (2), (3) tab(col);
-       3
+      > SELECT kll_get_quantile(_FUNC_(sketch), 0.5) FROM (SELECT kll_sketch_agg(col) as sketch FROM VALUES (1.0), (2.0) tab(col) UNION ALL SELECT kll_sketch_agg(col) as sketch FROM VALUES (2.0), (3.0) tab(col));
+       2.0
   """,
   //group = "agg_funcs",
 )

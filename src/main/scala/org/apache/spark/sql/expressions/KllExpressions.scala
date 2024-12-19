@@ -25,7 +25,19 @@ import org.apache.spark.sql.catalyst.expressions.NullIntolerant
 import org.apache.spark.sql.catalyst.expressions.codegen.{CodeBlock, CodegenContext, ExprCode}
 import org.apache.datasketches.quantilescommon.QuantileSearchCriteria
 import org.apache.spark.sql.catalyst.util.GenericArrayData
+import org.apache.spark.sql.catalyst.expressions.ExpressionDescription
 
+@ExpressionDescription(
+  usage = """
+    _FUNC_(expr) - Returns the minimum value seem by the sketch given the binary representation
+    of a Datasketches KllDoublesSketch. """,
+  examples = """
+    Examples:
+      > SELECT _FUNC_(kll_sketch_agg(col)) FROM VALUES (1.0), (2.0), (3.0) tab(col);
+       1.0
+  """
+  //group = "misc_funcs",
+)
 case class KllGetMin(child: Expression)
  extends UnaryExpression
  with ExpectsInputTypes
@@ -65,6 +77,17 @@ case class KllGetMin(child: Expression)
   }
 }
 
+@ExpressionDescription(
+  usage = """
+    _FUNC_(expr) - Returns the maximum value seem by the sketch given the binary representation
+    of a Datasketches KllDoublesSketch. """,
+  examples = """
+    Examples:
+      > SELECT _FUNC_(kll_sketch_agg(col)) FROM VALUES (1.0), (2.0), (3.0) tab(col);
+       3.0
+  """
+  //group = "misc_funcs",
+)
 case class KllGetMax(child: Expression)
  extends UnaryExpression
  with ExpectsInputTypes
@@ -113,7 +136,22 @@ case class KllGetMax(child: Expression)
   * @param isInclusive If true, use INCLUSIVE else EXCLUSIVE
   * @param isPmf Whether to return the PMF (true) or CDF (false)
   */
-case class KllGetPmfCdf(left: Expression, right: Expression, isInclusive: Boolean, isPmf: Boolean)
+@ExpressionDescription(
+  usage = """
+    _FUNC_(expr, expr, isInclusive, isPmf) - Returns an approximation to the PMF or CDF (default: isPmf = false)
+      of the given KllDoublesSketch using the specified search criteria (default: inclusive, isInclusive = true)
+      or exclusive using the given split points.
+  """,
+  examples = """
+    Examples:
+      > SELECT _FUNC_(kll_sketch_agg(col), array(1.5, 3.5), true, true) FROM VALUES (1.0), (2.0), (3.0) tab(col);
+       [0.3333333333333333, 0.6666666666666666, 0.0]
+  """
+)
+case class KllGetPmfCdf(left: Expression,
+                        right: Expression,
+                        isInclusive: Boolean = true,
+                        isPmf: Boolean = false)
  extends BinaryExpression
  with ExpectsInputTypes
  with NullIntolerant {

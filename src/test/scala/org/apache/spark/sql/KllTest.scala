@@ -26,10 +26,7 @@ import org.apache.spark.registrar.DatasketchesFunctionRegistry
 class KllTest extends SparkSessionManager {
   import spark.implicits._
 
-  // Register Datasketches functions
-  DatasketchesFunctionRegistry.registerFunctions(spark)
-
-  test("KLL Doubles via scala") {
+  test("KLL Doubles Sketch via scala") {
     val data: Seq[Record] = generateRecords()
     val exactStats = ExactStats()
     data.foreach(exactStats.addRecord)
@@ -40,15 +37,13 @@ class KllTest extends SparkSessionManager {
     // Compute aggregate min and max for the column 'uniform'
     val minMaxDF = df.agg(min("uniform").as("min_uniform"), max("uniform").as("max_uniform"))
     val groupDf = df.groupBy($"id")
-    println("done group")
 
     // Call kll_sketch_agg outside of agg() and assign it to a temporary variable
     val kllSketchAggExpr = kll_sketch_agg($"gaussian", 200)
-    println(s"kllSketchAggExpr: $kllSketchAggExpr")
+    //println(s"kllSketchAggExpr: $kllSketchAggExpr")
 
     // Use the temporary variable in agg()
     val gaussianKllDf = groupDf.agg(kllSketchAggExpr.as("data"))
-    println("done agg")
 
     // Optionally, you can extract the values if needed
     val minMax = minMaxDF.collect().head
@@ -56,7 +51,7 @@ class KllTest extends SparkSessionManager {
     val maxUniform = minMax.getAs[Double]("max_uniform")
 
     println(s"Min uniform: $minUniform, Max uniform: $maxUniform")
-    //gaussianKllDf.show()
+    gaussianKllDf.show()
 
     gaussianKllDf.select($"id", kll_get_min($"data").as("min"), kll_get_max($"data").as("max")).orderBy($"id").show()
 
@@ -65,8 +60,12 @@ class KllTest extends SparkSessionManager {
     gaussianKllDf.select($"id", kll_get_cdf($"data", Array[Double](0.05, 0.5, 0.95)).as("cdf")).orderBy($"id").show()
   }
 
-  test("KllDoubles via SQL") {
-    val data = Seq(1.0, 2.0, 3.0, 4.0, 5.0).toDF("value")
+  test("Kll Doubles Sketch via SQL") {
+    // Register Datasketches functions
+    DatasketchesFunctionRegistry.registerFunctions(spark)
+
+    val n = 5
+    val data = (for (i <- 1 to n) yield i.toDouble).toDF("value")
     data.createOrReplaceTempView("data_table")
 
     val kllDf = spark.sql(
@@ -85,7 +84,16 @@ class KllTest extends SparkSessionManager {
     kllDf.show()
   }
 
-  private def generateRecords(numRecords: Int = 25000): Seq[Record] = {
+
+  test("KLL Doubles Merge via Scala") {
+
+  }
+
+  test("KLL Doubles Merge via SQL") {
+
+  }
+
+  private def generateData(numRecords: Int = 25000): Seq[Record] = {
     val maxId = 20
     for (i <- 0 until numRecords) yield {
       val id = i % maxId

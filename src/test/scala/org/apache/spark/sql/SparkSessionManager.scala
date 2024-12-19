@@ -20,23 +20,19 @@ package org.apache.spark.sql
 import org.apache.log4j.{Level, Logger}
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.funsuite.AnyFunSuite
-//import org.apache.spark.SparkConf
 
+/**
+  * This class provides a common base for tests. It can perhaps
+  * be simplified or eliminated but was useful for very early-stage
+  * testing.
+  */
 trait SparkSessionManager extends AnyFunSuite with BeforeAndAfterAll {
   Logger.getRootLogger().setLevel(Level.OFF)
-  //val logger = Logger.getLogger(getClass.getName)
-
-  /*
-  val conf = new SparkConf()
-    .set("spark.sql.codegen.wholeStage", "true")
-    .set("spark.sql.codegen.comments", "true")
-  */
 
   lazy val spark: SparkSession = SparkSession
       .builder()
       .appName("datasketches-spark-tests")
       .master("local[3]")
-      //.config(conf)
       .getOrCreate()
 
   override def beforeAll(): Unit = {

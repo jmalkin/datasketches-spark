@@ -37,12 +37,12 @@ import org.apache.spark.sql.types.{AbstractDataType, DataType, IntegerType, Long
 // scalastyle:off line.size.limit
 @ExpressionDescription(
   usage = """
-    _FUNC_(expr, k) - Returns the KllDoublesSketch's binary representation.
-      `k` (optional) the size-accuracy trade-off parameter.""",
+    _FUNC_(expr, k) - Creates a KllDoublesSketch and returns the binary representation.
+      `k` (optional, default: 200) the size-accuracy trade-off parameter.""",
   examples = """
     Examples:
-      > SELECT theta_sketch_estimate(_FUNC_(col, 12)) FROM VALUES (1), (1), (2), (2), (3) tab(col);
-       3
+      > SELECT kll_get_quantile(_FUNC_(col, 200), 0.5) FROM VALUES (1.0), (1.0), (2.0), (2.0), (3.0) tab(col);
+       2.0
   """,
 )
 // scalastyle:on line.size.limit

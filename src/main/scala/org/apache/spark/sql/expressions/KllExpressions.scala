@@ -172,7 +172,7 @@ case class KllGetPmfCdf(left: Expression,
     val splitPoints = rightInput.asInstanceOf[GenericArrayData].toDoubleArray
     val sketch = KllDoublesSketch.wrap(Memory.wrap(sketchBytes))
 
-    val result =
+    val result: Array[Double] =
       if (isPmf) {
         sketch.getPMF(splitPoints, if (isInclusive) QuantileSearchCriteria.INCLUSIVE else QuantileSearchCriteria.EXCLUSIVE)
       } else {

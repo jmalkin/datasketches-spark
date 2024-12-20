@@ -27,9 +27,9 @@ import org.apache.spark.sql.catalyst.trees.UnaryLike
 import org.apache.spark.sql.types.{AbstractDataType, DataType, KllDoublesSketchWrapper, KllDoublesSketchType}
 import org.apache.datasketches.memory.Memory
 
-// TODO: write a useful javadoc, including Example in the description portion
 /**
- * The KllDoublesMergeAgg function utilizes a Datasketches KllDoublesSketch instance to ...
+ * The KllDoublesMergeAgg function utilizes a Datasketches KllDoublesSketch instance to
+ * combine multiple sketches into a single sketch.
  *
  * See [[https://datasketches.apache.org/docs/HLL/HLL.html]] for more information.
  *

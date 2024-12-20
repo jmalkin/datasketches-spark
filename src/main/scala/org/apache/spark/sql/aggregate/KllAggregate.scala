@@ -25,11 +25,10 @@ import org.apache.spark.sql.catalyst.expressions.aggregate.TypedImperativeAggreg
 import org.apache.spark.sql.catalyst.trees.BinaryLike
 import org.apache.spark.sql.types.{AbstractDataType, DataType, IntegerType, LongType, NumericType, FloatType, DoubleType, KllDoublesSketchWrapper, KllDoublesSketchType}
 
-// TODO: write a useful javadoc, including Example in the description portion
 /**
- * The KllDoublesSketchAgg function utilizes a Datasketches KllDoublesSketch instance to ...
- *
- * See [[https://datasketches.apache.org/docs/HLL/HLL.html]] for more information.
+ * The KllDoublesSketchAgg function utilizes a Datasketches KllDoublesSketch instance
+ * to create a sketch from a column of values which can be used to estimate quantiles
+ * and histograms.
  *
  * @param child child expression against which unique counting will occur
  * @param k the size-accraucy trade-off parameter for the sketch

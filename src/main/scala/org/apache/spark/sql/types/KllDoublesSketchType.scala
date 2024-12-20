@@ -17,9 +17,6 @@
 
 package org.apache.spark.sql.types
 
-//import org.apache.datasketches.memory.{WritableMemory, DefaultMemoryRequestServer}
-//import org.apache.datasketches.kll.KllDoublesSketch
-
 class KllDoublesSketchType extends UserDefinedType[KllDoublesSketchWrapper] {
   override def sqlType: DataType = DataTypes.BinaryType
 

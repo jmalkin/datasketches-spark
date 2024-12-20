@@ -21,15 +21,17 @@ import scala.util.Random
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.functions_ds._
 import org.apache.spark.registrar.DatasketchesFunctionRegistry
-import org.apache.spark.sql.catalyst.util.ArrayData
+import scala.collection.mutable.WrappedArray
 
 class KllTest extends SparkSessionManager {
   import spark.implicits._
 
   // helper method to check if two arrays are equal
-  private def compareArrays(ref: Array[Double], tst: Array[Double]) {
-    assert(ref.length == tst.length)
-    (ref zip tst).foreach { case (v1, v2) => assert(v1 == v2)}
+  private def compareArrays(ref: Array[Double], tst: WrappedArray[Double]) {
+    val tstArr = tst.toArray
+    if (ref.length != tstArr.length)
+      throw new AssertionError("Array lengths do not match: " + ref.length + " != " + tstArr.length)
+    (ref zip tstArr).foreach { case (v1, v2) => if (v1 != v2) throw new AssertionError("Values do not match: " + v1 + " != " + v2) }
   }
 
   test("KLL Doubles Sketch via scala") {
@@ -54,8 +56,17 @@ class KllTest extends SparkSessionManager {
       kll_get_cdf($"sketch", splitPoints, false).as("cdf_exclusive")
     ).head
 
-    val ref1 = Array[Double](0.2, 0.3, 0.5, 0.0)
-    compareArrays(pmfCdfResult.getAs[ArrayData]("pmf_inclusive"), ref1)
+    val pmf_incl = Array[Double](0.2, 0.3, 0.5, 0.0)
+    compareArrays(pmf_incl, pmfCdfResult.getAs[WrappedArray[Double]]("pmf_inclusive"))
+
+    val pmf_excl = Array[Double](0.2, 0.29, 0.51, 0.0)
+    compareArrays(pmf_excl, pmfCdfResult.getAs[WrappedArray[Double]]("pmf_exclusive"))
+
+    val cdf_incl = Array[Double](0.2, 0.5, 1.0, 1.0)
+    compareArrays(cdf_incl, pmfCdfResult.getAs[WrappedArray[Double]]("cdf_inclusive"))
+
+    val cdf_excl = Array[Double](0.2, 0.49, 1.0, 1.0)
+    compareArrays(cdf_excl, pmfCdfResult.getAs[WrappedArray[Double]]("cdf_exclusive"))
   }
 
   test("Kll Doubles Sketch via SQL") {
@@ -73,11 +84,40 @@ class KllTest extends SparkSessionManager {
       |  kll_get_max(kll_sketch_agg(value, 200)) AS max
       |FROM
       |  data_table
-    """.stripMargin)
+    """.stripMargin
+    )
     val minValue = kllDf.head.getAs[Double]("min")
     val maxValue = kllDf.head.getAs[Double]("max")
     assert(minValue == 1.0)
     assert(maxValue == n.toDouble)
+
+    val splitPoints = "array(20.5, 50, 102)"
+    val pmfCdfResult = spark.sql(
+      s"""
+      |SELECT
+      |  kll_get_pmf(t.sketch, ${splitPoints}) AS pmf_inclusive,
+      |  kll_get_pmf(t.sketch, ${splitPoints}, false) AS pmf_exclusive,
+      |  kll_get_cdf(t.sketch, ${splitPoints}) AS cdf_inclusive,
+      |  kll_get_cdf(t.sketch, ${splitPoints}, false) AS cdf_exclusive
+      |FROM
+      |  (SELECT
+      |     kll_sketch_agg(value, 200) sketch
+      |   FROM
+      |     data_table) t
+      """.stripMargin
+    ).head
+
+    val pmf_incl = Array[Double](0.2, 0.3, 0.5, 0.0)
+    compareArrays(pmf_incl, pmfCdfResult.getAs[WrappedArray[Double]]("pmf_inclusive"))
+
+    val pmf_excl = Array[Double](0.2, 0.29, 0.51, 0.0)
+    compareArrays(pmf_excl, pmfCdfResult.getAs[WrappedArray[Double]]("pmf_exclusive"))
+
+    val cdf_incl = Array[Double](0.2, 0.5, 1.0, 1.0)
+    compareArrays(cdf_incl, pmfCdfResult.getAs[WrappedArray[Double]]("cdf_inclusive"))
+
+    val cdf_excl = Array[Double](0.2, 0.49, 1.0, 1.0)
+    compareArrays(cdf_excl, pmfCdfResult.getAs[WrappedArray[Double]]("cdf_exclusive"))
   }
 
   test("KLL Doubles Merge via Scala") {

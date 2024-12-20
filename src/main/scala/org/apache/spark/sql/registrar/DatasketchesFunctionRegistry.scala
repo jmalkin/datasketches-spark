@@ -42,7 +42,23 @@ trait DatasketchesFunctionRegistry {
     }
   }
 
+  // helper to simplify the definition
+  protected def addFunction[T <: Expression : ClassTag](name: String)(f: (Seq[Expression]) => T): (String, (ExpressionInfo, FunctionBuilder)) =
+    name -> complexExpression[T](name)(f)
+
   // simplifies defining the expression (ignoring "since" as a stand-alone library)
+  protected def complexExpression[T <: Expression : ClassTag](name: String)(f: (Seq[Expression]) => T): (ExpressionInfo, FunctionBuilder) = {
+    val expressionInfo = new ExpressionInfo(
+      implicitly[ClassTag[T]].runtimeClass.getCanonicalName,
+      name
+    )
+    val builder: FunctionBuilder = (args: Seq[Expression]) => f(args)
+    // val (expressionInfo, builder) = FunctionRegistryBase.build[T](name, None) { (args: Seq[Expression]) =>
+    //   f(args)
+    // }
+    (expressionInfo, builder)
+  }
+
   protected def expression[T <: Expression : ClassTag](name: String): (String, (ExpressionInfo, FunctionBuilder)) = {
     val (expressionInfo, builder) = FunctionRegistryBase.build[T](name, None)
     (name, (expressionInfo, builder))
@@ -52,13 +68,18 @@ trait DatasketchesFunctionRegistry {
 // defines the Map for the Datasketches functions
 object DatasketchesFunctionRegistry extends DatasketchesFunctionRegistry {
   override val expressions: Map[String, (ExpressionInfo, FunctionBuilder)] = Map(
-    // Define your function entries here
-    // "functionName" -> (expressionInfo, functionBuilder)
     expression[KllDoublesSketchAgg]("kll_sketch_agg"),
     expression[KllDoublesMergeAgg]("kll_merge_agg"),
     expression[KllGetMin]("kll_get_min"),
     expression[KllGetMax]("kll_get_max"),
-    expression[KllGetPmfCdf]("kll_get_pmf"),
-    expression[KllGetPmfCdf]("kll_get_cdf")
+
+    addFunction("kll_get_pmf") { args: Seq[Expression] =>
+      val isInclusive = if (args.length > 2) args(2).eval().asInstanceOf[Boolean] else true
+      new KllGetPmfCdf(args(0), args(1), isInclusive = isInclusive, isPmf = true)
+    },
+    addFunction("kll_get_cdf") { args: Seq[Expression] =>
+      val isInclusive = if (args.length > 2) args(2).eval().asInstanceOf[Boolean] else true
+      new KllGetPmfCdf(args(0), args(1), isInclusive = isInclusive, isPmf = false)
+    }
   )
 }

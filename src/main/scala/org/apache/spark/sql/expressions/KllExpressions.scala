@@ -26,6 +26,7 @@ import org.apache.spark.sql.catalyst.expressions.codegen.{CodeBlock, CodegenCont
 import org.apache.datasketches.quantilescommon.QuantileSearchCriteria
 import org.apache.spark.sql.catalyst.util.GenericArrayData
 import org.apache.spark.sql.catalyst.expressions.ExpressionDescription
+import org.apache.spark.sql.catalyst.expressions.ImplicitCastInputTypes
 
 @ExpressionDescription(
   usage = """
@@ -154,7 +155,8 @@ case class KllGetPmfCdf(left: Expression,
                         isPmf: Boolean = false)
  extends BinaryExpression
  with ExpectsInputTypes
- with NullIntolerant {
+ with NullIntolerant
+ with ImplicitCastInputTypes {
 
   override protected def withNewChildrenInternal(newLeft: Expression,
                                               newRight: Expression) = {
@@ -165,7 +167,7 @@ case class KllGetPmfCdf(left: Expression,
 
   override def inputTypes: Seq[AbstractDataType] = Seq(KllDoublesSketchType, ArrayType(DoubleType))
 
-  override def dataType: DataType = ArrayType(DoubleType)
+  override def dataType: DataType = ArrayType(DoubleType, containsNull = false)
 
   override def nullSafeEval(leftInput: Any, rightInput: Any): Any = {
     val sketchBytes = leftInput.asInstanceOf[Array[Byte]]
@@ -194,8 +196,9 @@ case class KllGetPmfCdf(left: Expression,
          |} else {
          |  QuantileSearchCriteria searchCriteria = ${if (isInclusive) "QuantileSearchCriteria.INCLUSIVE" else "QuantileSearchCriteria.EXCLUSIVE"};
          |  final org.apache.datasketches.kll.KllDoublesSketch $sketch = org.apache.spark.sql.types.KllDoublesSketchWrapper.wrapAsReadOnlySketch(${sketchEval.value});
-         |  final double[] result = ${if (isPmf) s"$sketch.getPMF(${splitPointsEval.value}, searchCriteria)" else s"$sketch.getCDF(${splitPointsEval.value}, searchCriteria)"};
-         |  GenericArrayData ${ev.value} = new org.apache.spark.sql.catalyst.util.GenericArrayData(result);
+         |  final double[] splitPoints = ((org.apache.spark.sql.catalyst.util.GenericArrayData)${splitPointsEval.value}).toDoubleArray();
+         |  final double[] result = ${if (isPmf) s"$sketch.getPMF(splitPoints, searchCriteria)" else s"$sketch.getCDF(splitPoints, searchCriteria)"};
+         |  GenericArrayData ${ev.value} = new GenericArrayData(result);
          |  ${ev.isNull} = false;
          |}
        """.stripMargin

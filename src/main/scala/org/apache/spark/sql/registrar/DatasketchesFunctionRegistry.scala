@@ -42,25 +42,18 @@ trait DatasketchesFunctionRegistry {
     }
   }
 
-  // helper to simplify the definition
-  protected def addFunction[T <: Expression : ClassTag](name: String)(f: (Seq[Expression]) => T): (String, (ExpressionInfo, FunctionBuilder)) =
-    name -> complexExpression[T](name)(f)
-
   // simplifies defining the expression (ignoring "since" as a stand-alone library)
-  protected def complexExpression[T <: Expression : ClassTag](name: String)(f: (Seq[Expression]) => T): (ExpressionInfo, FunctionBuilder) = {
-    val expressionInfo = new ExpressionInfo(
-      implicitly[ClassTag[T]].runtimeClass.getCanonicalName,
-      name
-    )
-    val builder: FunctionBuilder = (args: Seq[Expression]) => f(args)
-    // val (expressionInfo, builder) = FunctionRegistryBase.build[T](name, None) { (args: Seq[Expression]) =>
-    //   f(args)
-    // }
-    (expressionInfo, builder)
-  }
-
   protected def expression[T <: Expression : ClassTag](name: String): (String, (ExpressionInfo, FunctionBuilder)) = {
     val (expressionInfo, builder) = FunctionRegistryBase.build[T](name, None)
+    (name, (expressionInfo, builder))
+  }
+
+  // some functions throw a query compile-time exception around the wrong
+  // number of parameters when using expression(). This function allows
+  // explicit argument handling by providing a lambda to use for the bulder.
+  protected def complexExpression[T <: Expression : ClassTag](name: String)(f: (Seq[Expression]) => T): (String, (ExpressionInfo, FunctionBuilder)) = {
+    val expressionInfo = FunctionRegistryBase.expressionInfo[T](name, None)
+    val builder: FunctionBuilder = (args: Seq[Expression]) => f(args)
     (name, (expressionInfo, builder))
   }
 }
@@ -73,11 +66,13 @@ object DatasketchesFunctionRegistry extends DatasketchesFunctionRegistry {
     expression[KllGetMin]("kll_get_min"),
     expression[KllGetMax]("kll_get_max"),
 
-    addFunction("kll_get_pmf") { args: Seq[Expression] =>
+    // TODO: it seems like there's got to be a way to simplify this, but
+    // perhaps not with the optional isInclusive parameter?
+    complexExpression[KllGetPmfCdf]("kll_get_pmf") { args: Seq[Expression] =>
       val isInclusive = if (args.length > 2) args(2).eval().asInstanceOf[Boolean] else true
       new KllGetPmfCdf(args(0), args(1), isInclusive = isInclusive, isPmf = true)
     },
-    addFunction("kll_get_cdf") { args: Seq[Expression] =>
+    complexExpression[KllGetPmfCdf]("kll_get_cdf") { args: Seq[Expression] =>
       val isInclusive = if (args.length > 2) args(2).eval().asInstanceOf[Boolean] else true
       new KllGetPmfCdf(args(0), args(1), isInclusive = isInclusive, isPmf = false)
     }

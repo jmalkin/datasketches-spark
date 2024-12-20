@@ -210,8 +210,6 @@ case class KllGetPmfCdf(left: Expression,
   }
 }
 
-
-
 // default search criteria = inclusive
 // getQuantile(rank, QuantileSearchCriteria)
 // getQuantileLowerBound(rank)

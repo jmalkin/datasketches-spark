@@ -68,6 +68,11 @@ object DatasketchesFunctionRegistry extends DatasketchesFunctionRegistry {
 
     // TODO: it seems like there's got to be a way to simplify this, but
     // perhaps not with the optional isInclusive parameter?
+    // It seems like spark uses ExprssionBuilder, extending
+    // that class via a builder class and overriding build() to handle the lambda.
+    // It allows for a cleaner registry here, so we can look at where to put
+    // the builder classes in the future.
+    // See org.apache.spark.sql.catalyst.expressions.variant.variantExpressions.scala
     complexExpression[KllGetPmfCdf]("kll_get_pmf") { args: Seq[Expression] =>
       val isInclusive = if (args.length > 2) args(2).eval().asInstanceOf[Boolean] else true
       new KllGetPmfCdf(args(0), args(1), isInclusive = isInclusive, isPmf = true)
